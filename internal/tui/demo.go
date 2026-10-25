@@ -549,6 +549,21 @@ func (m demoModel) homeView(width int) string {
 
 func (m demoModel) welcomeView(width int) string {
 	var b strings.Builder
+	if width >= 64 {
+		logo := lipgloss.NewStyle().
+			Foreground(colorAccent).
+			Bold(true).
+			Width(width).
+			Align(lipgloss.Center).
+			Render(logoArt)
+		b.WriteString(logo)
+		b.WriteString("\n")
+		b.WriteString(lipgloss.NewStyle().
+			Width(width).
+			Align(lipgloss.Center).
+			Render(mutedStyle.Render("pack up Windows. Put it back.")))
+		b.WriteString("\n\n")
+	}
 	b.WriteString(lipgloss.NewStyle().Foreground(colorAccent2).Bold(true).Render("Ready to rebuild, safely."))
 	b.WriteString("\n\n")
 	if width < 60 {

@@ -4,6 +4,10 @@ The Docker image is a **safe, disposable demonstration** of ditch-windows. It ex
 you can try the backup and restore workflow without installing anything on your Windows
 machine and without giving the app access to your real profile.
 
+For the Windows application's paths and the repository lifecycle, see
+[STORAGE.md](STORAGE.md). For the component boundaries, see
+[ARCHITECTURE.md](ARCHITECTURE.md).
+
 ## Safety model
 
 - The container is Linux. It cannot see `C:\Users\...` unless you explicitly mount it.
@@ -108,10 +112,14 @@ automated tour remains available without `-it`.
 /demo/repo     encrypted restic repository
 /demo/state    config, logs, local manifests
 /demo/tmp      staging and secure Wi-Fi temp directories
+/home/demo/.cache/restic   restic cache (disposable, not a backup)
 ```
 
 The image runs as the unprivileged `demo` user (UID 10001). The restic repository and
-all generated files are owned by that user.
+all generated files are owned by that user. Application data lives under `/demo`; restic
+may also use its cache in the container home. Both are discarded with `--rm`, and no host
+path is mounted by the documented commands. See the Docker table in
+[STORAGE.md](STORAGE.md#docker-demo-storage) for the storage map.
 
 ## Cleanup
 

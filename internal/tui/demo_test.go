@@ -18,7 +18,7 @@ func testModel() demoModel {
 func TestDemoViewRendersDashboard(t *testing.T) {
 	m := testModel()
 	view := m.View()
-	for _, want := range []string{"ditch-windows", "SAFE DOCKER DEMO", "ACTIONS", "Ready to rebuild", "Backup", "Demo files"} {
+	for _, want := range []string{"ditch-windows", "SAFE DOCKER DEMO", "ACTIONS", "Ready to rebuild", "pack up Windows. Put it back.", "Backup", "Demo files"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("view is missing %q:\n%s", want, view)
 		}
@@ -26,7 +26,7 @@ func TestDemoViewRendersDashboard(t *testing.T) {
 }
 
 func TestDemoViewFitsCommonTerminals(t *testing.T) {
-	for _, size := range []struct{ width, height int }{{80, 24}, {100, 30}, {140, 42}} {
+	for _, size := range []struct{ width, height int }{{80, 24}, {100, 30}, {110, 32}, {140, 42}} {
 		m := testModel()
 		m.width, m.height = size.width, size.height
 		view := m.View()
