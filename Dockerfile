@@ -26,14 +26,16 @@ RUN apt-get update \
     && chown demo:demo /demo
 
 COPY --from=build /out/ditch-windows /usr/local/bin/ditch-windows
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod 0755 /usr/local/bin/docker-entrypoint.sh
 
 # The demo command generates its own published, disposable passphrase for the
 # synthetic repository. Never use this image or password for real data.
 ENV DITCH_DEMO_DIR=/demo \
-    DITCH_RESTIC_BINARY=/usr/bin/restic
+    DITCH_RESTIC_BINARY=/usr/bin/restic \
+    TERM=xterm-256color
 
 USER demo
 WORKDIR /home/demo
 
-ENTRYPOINT ["ditch-windows"]
-CMD ["demo"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

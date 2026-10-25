@@ -8,9 +8,10 @@ restoring it after a clean install. It drives Windows' own tools (`winget`, `net
 `dism`) and restic as subprocesses. It does not reimplement backup, deduplication, or
 cryptography.
 
-> **Status:** v0.1 development. The CLI is functional and an isolated Docker demo is
-> available. The full-screen TUI and some documentation are still being built. Test
-> restores on a non-critical machine first.
+> **Status:** v0.1 development. The CLI is functional and the isolated Docker demo has
+> a full-screen terminal UI. The Windows screens are still being moved to the same
+> interface, and some documentation is still being built. Test restores on a
+> non-critical machine first.
 
 ## Features
 
@@ -35,7 +36,8 @@ cryptography.
 - **UAC when needed** — starts unelevated and relaunches elevated only when a selected
   module requires administrator rights.
 - **Safe Docker demo** — run the workflow in a disposable Linux container with synthetic
-  Windows data, real restic encryption, and no access to your real profile.
+  Windows data, real restic encryption, and no access to your real profile. A
+  keyboard-driven, full-screen TUI makes the workflow explorable without flags.
 
 ## Requirements
 
@@ -107,10 +109,20 @@ modules (`winget`, `netsh`, registry).
 
 ```bash
 docker build -t ditch-windows-demo .
-docker run --rm ditch-windows-demo          # backup, list, dry-run preview, verify
-docker run --rm ditch-windows-demo demo --apply   # also demo .bak conflicts
-docker run --rm -it ditch-windows-demo demo --interactive
+
+# Full-screen TUI. The -it is required so the TUI can read keys and draw.
+docker run --rm -it ditch-windows-demo
+
+# Non-interactive tour for scripts, CI, or a quick read-only look.
+docker run --rm ditch-windows-demo
+
+# Skip the menu and demonstrate .bak conflict preservation.
+docker run --rm ditch-windows-demo demo --apply
 ```
+
+Inside the TUI, use `j`/`k` or the arrow keys to move and `enter` to select. Shortcuts:
+`b` backup, `p` preview restore, `a` apply restore, `v` verify, `l` backups,
+`f` demo files, `q` quit. Applying a restore asks for confirmation first.
 
 Everything lives under `/demo` inside the container. `--rm` throws it all away. The demo
 passphrase is published (`ditch-demo-only`) because the data is synthetic; never reuse
@@ -134,8 +146,8 @@ ditch-windows restore <backup-id>     Preview a selected backup
 ditch-windows restore --apply         Preview, confirm, and apply
 ditch-windows verify                  Check repository and newest backup
 ditch-windows verify --read-data      Also read and verify data blobs
-ditch-windows demo                    Safe synthetic Docker demo
-ditch-windows demo --interactive      Interactive demo menu
+ditch-windows demo                    Safe automated synthetic Docker demo
+ditch-windows demo --interactive      Full-screen demo TUI (requires a terminal)
 ditch-windows demo --apply            Demo restore + .bak handling in the container
 ditch-windows config show             Show config and profiles
 ditch-windows config init --repo URL  Create the initial config
@@ -222,7 +234,7 @@ internal/demo/      synthetic modules for the isolated Docker demo
 internal/platform/  Windows registry, fonts, theme providers
 internal/restic/    restic subprocess wrapper
 internal/storage/   repository URL parsing (local/USB/S3/rclone)
-internal/tui/       interactive terminal UI (in progress)
+internal/tui/       bubbletea/lipgloss full-screen demo interface
 Dockerfile          safe Linux demo image (restic + synthetic fixtures)
 ```
 

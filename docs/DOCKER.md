@@ -47,7 +47,20 @@ correctness. Real captures and restores must still be tested on Windows 11.
 
 ```bash
 docker build -t ditch-windows-demo .
+
+# Full-screen TUI; -it is required.
+docker run --rm -it ditch-windows-demo
+
+# Automated tour, useful for CI and non-interactive shells.
 docker run --rm ditch-windows-demo
+```
+
+The image entrypoint picks the TUI when both stdin and stdout are terminals, and the
+automated tour otherwise. You can always select one explicitly:
+
+```bash
+docker run --rm -it ditch-windows-demo demo --interactive
+docker run --rm ditch-windows-demo demo
 ```
 
 The default tour:
@@ -68,11 +81,25 @@ docker run --rm ditch-windows-demo demo --apply
 To explore interactively:
 
 ```bash
-docker run --rm -it ditch-windows-demo demo --interactive
+docker run --rm -it ditch-windows-demo
 ```
 
-Interactive menu options: back up, list, preview restore, apply restore, verify, show
-demo files, quit.
+The TUI has a dashboard, module status table, restore preview, a confirmation step
+before writing, backup list, verification result, and a file browser. Navigate with
+`j`/`k` or the arrow keys, select with `enter`, or use the shortcuts:
+
+| Key | Action |
+| --- | --- |
+| `b` | Run a backup |
+| `p` | Preview the newest restore (dry run) |
+| `a` | Apply the previewed restore (asks `y` to confirm) |
+| `v` | Verify repository integrity and manifest hashes |
+| `l` | List backups |
+| `f` | Show synthetic demo files |
+| `q` | Quit |
+
+The TUI needs at least an 80x24 terminal. If the window is smaller, resize it; the
+automated tour remains available without `-it`.
 
 ## Layout inside the container
 
@@ -105,6 +132,10 @@ docker volume rm ditch-demo-data
 **Docker Desktop says the WSL engine cannot start.** Restart Docker Desktop and run
 `wsl --shutdown` from PowerShell, then retry. This is a Docker Desktop/WSL issue, not an
 application error.
+
+**The TUI does not open or exits immediately.** Use `docker run --rm -it`, from a real
+interactive terminal rather than a pipe. The TUI also needs at least an 80x24 window.
+Without a TTY the entrypoint deliberately falls back to the automated tour.
 
 **The image builds but the demo fails with a restic error.** Rebuild without cache
 (`docker build --no-cache -t ditch-windows-demo .`) to pick up the current code.

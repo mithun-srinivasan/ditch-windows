@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/x/term"
 	"github.com/mithun-srinivasan/ditch-windows/internal/core"
 	"github.com/mithun-srinivasan/ditch-windows/internal/demo"
 	"github.com/mithun-srinivasan/ditch-windows/internal/restic"
@@ -122,6 +123,12 @@ func demoCommand(args []string) error {
 		}
 	})
 	s := &demoSession{base: base, home: home, cfg: cfg, params: params, runner: runner, logger: logger, profile: profile}
+
+	// The TUI owns the terminal and shows the safety model on its dashboard, so
+	// do not print the plain-text banner before entering the alternate screen.
+	if *interactive && term.IsTerminal(os.Stdin.Fd()) && term.IsTerminal(os.Stdout.Fd()) {
+		return s.runTUI()
+	}
 
 	fmt.Println("ditch-windows — isolated Docker demo")
 	fmt.Printf("  demo root:     %s\n", base)
