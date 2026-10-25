@@ -228,10 +228,6 @@ func ParseWifiProfiles(data []byte) []string {
 	return out
 }
 
-type wlanProfileXML struct {
-	Name string `xml:"name"`
-}
-
 // ProfileNameFromXMLFile reads just the profile name from an exported XML.
 // The file may contain a plaintext key; it is never logged.
 func ProfileNameFromXMLFile(path string) (string, error) {

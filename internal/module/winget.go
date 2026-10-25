@@ -92,16 +92,6 @@ func (i Inventory) Counts() (winget, alternatives, manual int) {
 	return len(i.Winget), len(i.Store) + len(i.Scoop) + len(i.Choco), len(i.Manual)
 }
 
-func (i Inventory) all() []InventoryApp {
-	out := make([]InventoryApp, 0, len(i.Winget)+len(i.Store)+len(i.Scoop)+len(i.Choco)+len(i.Manual))
-	out = append(out, i.Winget...)
-	out = append(out, i.Store...)
-	out = append(out, i.Scoop...)
-	out = append(out, i.Choco...)
-	out = append(out, i.Manual...)
-	return out
-}
-
 // Name implements core.Module.
 func (w *Winget) Name() string { return "winget" }
 

@@ -222,7 +222,7 @@ func ResolveIncludeRoots(home string, patterns []string) ([]string, error) {
 		if pattern == "" {
 			continue
 		}
-		if filepath.IsAbs(pattern) {
+		if isAbsoluteLike(pattern) {
 			return nil, fmt.Errorf("include path %q must be relative to home", pattern)
 		}
 		prefix := pattern

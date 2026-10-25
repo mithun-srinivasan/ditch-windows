@@ -181,7 +181,7 @@ func (c *Config) Validate() error {
 			if strings.TrimSpace(pattern) == "" {
 				return fmt.Errorf("profile %q contains an empty include path", name)
 			}
-			if filepath.IsAbs(pattern) {
+			if isAbsoluteLike(pattern) {
 				return fmt.Errorf("profile %q include path %q must be relative to the home directory", name, pattern)
 			}
 			if strings.Contains(pattern, "..") {
@@ -195,6 +195,21 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("invalid conflict_mode %q", c.ConflictMode)
 	}
 	return nil
+}
+
+// isAbsoluteLike rejects absolute paths written for either Windows or POSIX so
+// config validation behaves the same when tests run on Linux CI.
+func isAbsoluteLike(path string) bool {
+	if filepath.IsAbs(path) || filepath.VolumeName(path) != "" {
+		return true
+	}
+	if len(path) >= 2 && path[1] == ':' {
+		c := path[0]
+		if (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') {
+			return true
+		}
+	}
+	return strings.HasPrefix(path, `\\`) || strings.HasPrefix(path, "//")
 }
 
 // KnownModule reports whether name is a supported module.

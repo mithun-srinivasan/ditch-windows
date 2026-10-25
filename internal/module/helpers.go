@@ -118,5 +118,3 @@ func lastAfterColon(line string) string {
 	}
 	return strings.TrimSpace(line[idx+1:])
 }
-
-func moduleLabel(name string) string { return "[" + name + "]" }
