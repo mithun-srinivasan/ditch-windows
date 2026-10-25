@@ -1,0 +1,43 @@
+# If you prefer the allowlist template instead of this, see community template:
+# https://github.com/github/gitignore/blob/main/Go.gitignore
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+/dist/
+/bin/
+/build/
+
+# goreleaser
+dist/
+
+# Logs
+*.log
+
+# Config
+config.yaml
