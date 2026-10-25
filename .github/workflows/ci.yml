@@ -70,10 +70,20 @@ jobs:
           path: dist/ditch-windows-${{ matrix.arch }}.exe
           if-no-files-found: error
 
+  docker:
+    name: Docker demo smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build demo image
+        run: docker build -t ditch-windows-demo:ci .
+      - name: Run automated demo
+        run: docker run --rm ditch-windows-demo:ci
+
   release:
     name: Release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [test, lint, build]
+    needs: [test, lint, build, docker]
     runs-on: ubuntu-latest
     permissions:
       contents: write

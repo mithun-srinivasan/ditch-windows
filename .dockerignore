@@ -1,0 +1,9 @@
+.git
+.gitignore
+.github
+*.exe
+*.test
+dist
+bin
+coverage.out
+ditch-windows-demo-data

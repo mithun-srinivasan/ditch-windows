@@ -69,7 +69,7 @@ func (f *Files) Scan(ctx context.Context) (core.Summary, error) {
 	}
 	return core.Summary{
 		ItemCount: int(files),
-		Details:   fmt.Sprintf("%d file(s), %s across %d folder(s); VSS %s", files, humanBytes(bytes), len(roots), elevatedWord()),
+		Details:   fmt.Sprintf("%d file(s), %s across %d folder(s); VSS %s", files, humanBytes(bytes), len(roots), vssStatus()),
 	}, nil
 }
 
@@ -339,7 +339,10 @@ func skipDirName(name string, isRoot bool) bool {
 	return false
 }
 
-func elevatedWord() string {
+func vssStatus() string {
+	if runtime.GOOS != "windows" {
+		return "not applicable on this platform"
+	}
 	if core.IsElevated() {
 		return "enabled"
 	}
@@ -349,6 +352,9 @@ func elevatedWord() string {
 func vssSuffix(vss bool) string {
 	if vss {
 		return " using a VSS snapshot"
+	}
+	if runtime.GOOS != "windows" {
+		return " (VSS is Windows-only)"
 	}
 	return " (VSS requires elevation)"
 }

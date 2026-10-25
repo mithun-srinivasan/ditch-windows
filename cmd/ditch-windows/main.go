@@ -50,6 +50,8 @@ func execute(args []string) error {
 		return listCommand(args[1:])
 	case "verify":
 		return verifyCommand(args[1:])
+	case "demo":
+		return demoCommand(args[1:])
 	default:
 		usage()
 		return fmt.Errorf("unknown command %q", args[0])
@@ -67,7 +69,11 @@ Usage:
   ditch-windows list [--repo <url>]
   ditch-windows restore [backup-id] [--dry-run|--apply] [--repo <url>]
   ditch-windows verify [backup-id] [--read-data] [--repo <url>]
+  ditch-windows demo [--interactive] [--apply]
   ditch-windows version
+
+The demo command is an isolated, synthetic sandbox intended for Docker. It
+never reads the real user profile; see README.md for the container workflow.
 
 Set DITCH_RESTIC_BINARY to select a restic executable and RESTIC_PASSWORD to
 supply the repository password non-interactively.`)

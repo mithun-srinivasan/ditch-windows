@@ -346,11 +346,11 @@ func ParseLsJSON(out []byte) ([]core.FileNode, error) {
 			continue
 		}
 		var raw struct {
-			StructType string `json:"struct_type"`
-			Path       string `json:"path"`
-			Type       string `json:"type"`
-			Size       int64  `json:"size"`
-			Mode       string `json:"mode"`
+			StructType string          `json:"struct_type"`
+			Path       string          `json:"path"`
+			Type       string          `json:"type"`
+			Size       int64           `json:"size"`
+			Mode       json.RawMessage `json:"mode"`
 		}
 		if err := json.Unmarshal(line, &raw); err != nil {
 			continue
@@ -358,12 +358,29 @@ func ParseLsJSON(out []byte) ([]core.FileNode, error) {
 		if raw.StructType != "node" || raw.Path == "" {
 			continue
 		}
-		nodes = append(nodes, core.FileNode{Path: raw.Path, Type: raw.Type, Size: raw.Size, Mode: raw.Mode})
+		nodes = append(nodes, core.FileNode{Path: raw.Path, Type: raw.Type, Size: raw.Size, Mode: parseMode(raw.Mode)})
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
 	return nodes, nil
+}
+
+// parseMode normalizes restic's mode field. Depending on restic version it is
+// either a string ("0644") or an integer (384). Integers are rendered as octal.
+func parseMode(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var text string
+	if err := json.Unmarshal(raw, &text); err == nil {
+		return text
+	}
+	var number int64
+	if err := json.Unmarshal(raw, &number); err == nil {
+		return fmt.Sprintf("0%o", number)
+	}
+	return string(raw)
 }
 
 // Check verifies repository integrity. readData also checks data blobs.

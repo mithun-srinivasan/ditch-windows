@@ -54,6 +54,7 @@ func TestParseSnapshotsJSONEmpty(t *testing.T) {
 func TestParseLsJSON(t *testing.T) {
 	out := []byte(`{"time":"2026-01-02T03:04:05Z","tree":"abc","paths":["C:/x"]}
 {"struct_type":"node","name":"a.txt","type":"file","path":"C:/x/a.txt","size":12,"mode":"0644"}
+{"struct_type":"node","name":"binary.bin","type":"file","path":"C:/x/binary.bin","size":9,"mode":384}
 not json at all
 {"struct_type":"node","name":"sub","type":"dir","path":"C:/x/sub","size":0}
 {"struct_type":"snapshot","id":"abc"}
@@ -62,14 +63,17 @@ not json at all
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(nodes) != 2 {
-		t.Fatalf("got %d nodes, want 2: %+v", len(nodes), nodes)
+	if len(nodes) != 3 {
+		t.Fatalf("got %d nodes, want 3: %+v", len(nodes), nodes)
 	}
 	if nodes[0].Path != "C:/x/a.txt" || nodes[0].Size != 12 || nodes[0].Type != "file" {
 		t.Fatalf("unexpected first node: %+v", nodes[0])
 	}
-	if nodes[1].Type != "dir" {
-		t.Fatalf("unexpected second node: %+v", nodes[1])
+	if nodes[1].Mode != "0600" {
+		t.Fatalf("numeric mode = %q, want 0600", nodes[1].Mode)
+	}
+	if nodes[2].Type != "dir" {
+		t.Fatalf("unexpected third node: %+v", nodes[2])
 	}
 }
 

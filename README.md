@@ -8,8 +8,9 @@ restoring it after a clean install. It drives Windows' own tools (`winget`, `net
 `dism`) and restic as subprocesses. It does not reimplement backup, deduplication, or
 cryptography.
 
-> **Status:** v0.1 development. The CLI is functional; the full-screen TUI and some
-> documentation are still being built. Test restores on a non-critical machine first.
+> **Status:** v0.1 development. The CLI is functional and an isolated Docker demo is
+> available. The full-screen TUI and some documentation are still being built. Test
+> restores on a non-critical machine first.
 
 ## Features
 
@@ -33,6 +34,8 @@ cryptography.
   per-module status, snapshot IDs, and SHA-256 hashes.
 - **UAC when needed** — starts unelevated and relaunches elevated only when a selected
   module requires administrator rights.
+- **Safe Docker demo** — run the workflow in a disposable Linux container with synthetic
+  Windows data, real restic encryption, and no access to your real profile.
 
 ## Requirements
 
@@ -95,6 +98,29 @@ it in a password manager and keep an offline recovery copy.
 Config lives at `%APPDATA%\ditch-windows\config.yaml`; logs and local manifests live
 under the same directory.
 
+## Docker demo (safe, no Windows required)
+
+The demo runs in a disposable Linux container. It does **not** mount your home
+directory or read any real files. It uses a synthetic home, real restic encryption, the
+real files backup/restore module, and clearly labelled fixtures for the Windows-only
+modules (`winget`, `netsh`, registry).
+
+```bash
+docker build -t ditch-windows-demo .
+docker run --rm ditch-windows-demo          # backup, list, dry-run preview, verify
+docker run --rm ditch-windows-demo demo --apply   # also demo .bak conflicts
+docker run --rm -it ditch-windows-demo demo --interactive
+```
+
+Everything lives under `/demo` inside the container. `--rm` throws it all away. The demo
+passphrase is published (`ditch-demo-only`) because the data is synthetic; never reuse
+it for real backups. See [docs/DOCKER.md](docs/DOCKER.md) for the safety model,
+architecture, volume options, and troubleshooting.
+
+The container is a product demo, not a Windows substitute: it cannot exercise `winget`,
+`netsh`, `dism`, VSS, UAC, or the registry. Validate real captures and restores on a
+Windows 11 machine.
+
 ## Commands
 
 ```text
@@ -108,6 +134,9 @@ ditch-windows restore <backup-id>     Preview a selected backup
 ditch-windows restore --apply         Preview, confirm, and apply
 ditch-windows verify                  Check repository and newest backup
 ditch-windows verify --read-data      Also read and verify data blobs
+ditch-windows demo                    Safe synthetic Docker demo
+ditch-windows demo --interactive      Interactive demo menu
+ditch-windows demo --apply            Demo restore + .bak handling in the container
 ditch-windows config show             Show config and profiles
 ditch-windows config init --repo URL  Create the initial config
 ditch-windows version                 Print build information
@@ -189,10 +218,12 @@ are required. Contributions are welcome under the MIT license.
 cmd/ditch-windows/  CLI entry point
 internal/core/      module registry, runner, config, manifest, conflicts, elevation
 internal/module/    winget, default-apps, wifi, fonts, theme, files
+internal/demo/      synthetic modules for the isolated Docker demo
 internal/platform/  Windows registry, fonts, theme providers
 internal/restic/    restic subprocess wrapper
 internal/storage/   repository URL parsing (local/USB/S3/rclone)
 internal/tui/       interactive terminal UI (in progress)
+Dockerfile          safe Linux demo image (restic + synthetic fixtures)
 ```
 
 ## License
