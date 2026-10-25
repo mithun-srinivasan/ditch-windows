@@ -449,7 +449,7 @@ func (m demoModel) menuView(height int) string {
 	for i, item := range demoMenu {
 		marker := "  "
 		if i == m.cursor && m.screen != screenBusy {
-			marker = "▸ "
+			marker = "> "
 		}
 		line := fmt.Sprintf("%s%-16s %s", marker, item.label, mutedStyle.Render(item.key))
 		if i == m.cursor && m.screen != screenBusy {
@@ -458,7 +458,7 @@ func (m demoModel) menuView(height int) string {
 				Foreground(lipgloss.Color("#0B0F14")).
 				Bold(true).
 				Width(24).
-				Render(fmt.Sprintf("▸ %-16s %s", item.label, item.key))
+				Render(fmt.Sprintf("> %-16s %s", item.label, item.key))
 		}
 		b.WriteString(line)
 		b.WriteString("\n")
@@ -552,6 +552,7 @@ func (m demoModel) welcomeView(width int) string {
 	if width >= 64 {
 		logo := lipgloss.NewStyle().
 			Foreground(colorAccent).
+			Background(colorPanel).
 			Bold(true).
 			Width(width).
 			Align(lipgloss.Center).
@@ -559,6 +560,7 @@ func (m demoModel) welcomeView(width int) string {
 		b.WriteString(logo)
 		b.WriteString("\n")
 		b.WriteString(lipgloss.NewStyle().
+			Background(colorPanel).
 			Width(width).
 			Align(lipgloss.Center).
 			Render(mutedStyle.Render("pack up Windows. Put it back.")))
@@ -591,7 +593,7 @@ func (m demoModel) welcomeView(width int) string {
 		}
 	}
 	for _, c := range cards {
-		b.WriteString(fmt.Sprintf("  %s  %s\n", cyanStyle.Width(7).Render(c.name), mutedStyle.Render(c.detail)))
+		b.WriteString(fmt.Sprintf("  %s  %s\n", cyanStyle.Background(colorPanel).Width(7).Render(c.name), mutedStyle.Render(c.detail)))
 	}
 	b.WriteString("\n")
 	b.WriteString(mutedStyle.Render("Press b or enter to run the first backup."))
@@ -781,7 +783,9 @@ func fitLines(s string, width, height int) string {
 		lines = lines[:height]
 	}
 	for i, line := range lines {
-		lines[i] = ansi.Truncate(line, width, "…")
+		if ansi.StringWidth(line) > width {
+			lines[i] = ansi.Truncate(line, width, "…")
+		}
 	}
 	return strings.Join(lines, "\n")
 }

@@ -23,6 +23,19 @@ func TestDemoViewRendersDashboard(t *testing.T) {
 			t.Errorf("view is missing %q:\n%s", want, view)
 		}
 	}
+	if strings.Contains(view, "…") {
+		t.Errorf("dashboard has a stray truncation marker:\n%s", view)
+	}
+}
+
+func TestFitLinesLeavesExactWidthAlone(t *testing.T) {
+	line := strings.Repeat("x", 24)
+	if got := fitLines(line, 24, 1); got != line {
+		t.Fatalf("fitLines changed an exact-width line: %q", got)
+	}
+	if got := fitLines(line+"y", 24, 1); got == line+"y" {
+		t.Fatal("fitLines failed to truncate an over-width line")
+	}
 }
 
 func TestDemoViewFitsCommonTerminals(t *testing.T) {
