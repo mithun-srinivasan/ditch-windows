@@ -159,7 +159,6 @@ func newDemoModel(actions DemoActions) demoModel {
 var (
 	colorBg      = lipgloss.Color("#0B0F14")
 	colorPanel   = lipgloss.Color("#111827")
-	colorPanel2  = lipgloss.Color("#0F172A")
 	colorBorder  = lipgloss.Color("#243044")
 	colorText    = lipgloss.Color("#E5E7EB")
 	colorMuted   = lipgloss.Color("#94A3B8")
