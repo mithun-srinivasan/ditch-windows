@@ -162,7 +162,7 @@ func (w *Wifi) Restore(ctx context.Context, dir string, opts core.RestoreOpts) e
 	}
 	defer func() { _ = SecureWipeDir(secureDir) }()
 
-	if err := p.Repo.Restore(ctx, status.Snapshots[0], secureDir, core.RestoreOptions{}); err != nil {
+	if err := p.Repo.Restore(ctx, status.Snapshots[0], secureDir, core.RestoreOptions{IgnoreTimestampErrors: true}); err != nil {
 		return fmt.Errorf("restore encrypted Wi-Fi snapshot: %w", err)
 	}
 	xmlFiles, err := findFilesByExtension(secureDir, ".xml")

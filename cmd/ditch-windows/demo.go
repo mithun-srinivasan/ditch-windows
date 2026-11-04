@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -10,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/x/term"
 	"github.com/mithun-srinivasan/ditch-windows/internal/core"
 	"github.com/mithun-srinivasan/ditch-windows/internal/demo"
 	"github.com/mithun-srinivasan/ditch-windows/internal/restic"
@@ -29,13 +29,59 @@ type demoSession struct {
 func demoCommand(args []string) error {
 	fs := flag.NewFlagSet("demo", flag.ContinueOnError)
 	baseFlag := fs.String("base", "", "demo directory (default $DITCH_DEMO_DIR or a temp folder)")
-	interactive := fs.Bool("interactive", false, "show an interactive demo menu")
+	interactive := fs.Bool("interactive", false, "show the interactive demo")
 	apply := fs.Bool("apply", false, "perform a demo restore inside the container-only demo home")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
-	base := *baseFlag
+	base, err := resolveDemoBase(*baseFlag)
+	if err != nil {
+		return err
+	}
+
+	if *interactive && isInteractiveTerminal() {
+		err := runTUI("demo", []string{"bridge", "--demo", "--base", base}, false)
+		if err == nil {
+			return nil
+		}
+		if !errors.Is(err, errNoTUI) {
+			return err
+		}
+		// No frontend available: keep the plain numbered menu useful.
+	}
+
+	s, err := setupDemo(base)
+	if err != nil {
+		return err
+	}
+	defer s.logger.Close()
+
+	// The TUI owns the terminal and shows the safety model on its dashboard, so
+	// do not print the plain-text banner before entering the alternate screen.
+	if *interactive {
+		fmt.Println("ditch-windows — isolated Docker demo")
+		fmt.Printf("  demo root:      %s\n", base)
+		fmt.Printf("  synthetic home: %s\n", s.home)
+		fmt.Printf("  restic repo:    %s\n", filepath.Join(base, "repo"))
+		fmt.Println("  demo passphrase: ditch-demo-only (published; synthetic data only)")
+		fmt.Println("  Your real files are not mounted or read. Everything above is disposable.")
+		fmt.Println()
+		return s.runMenu()
+	}
+
+	fmt.Println("ditch-windows — isolated Docker demo")
+	fmt.Printf("  demo root:      %s\n", base)
+	fmt.Printf("  synthetic home: %s\n", s.home)
+	fmt.Printf("  restic repo:    %s\n", filepath.Join(base, "repo"))
+	fmt.Println("  demo passphrase: ditch-demo-only (published; synthetic data only)")
+	fmt.Println("  Your real files are not mounted or read. Everything above is disposable.")
+	fmt.Println()
+	return s.runTour(*apply)
+}
+
+func resolveDemoBase(flagBase string) (string, error) {
+	base := flagBase
 	if base == "" {
 		base = os.Getenv("DITCH_DEMO_DIR")
 	}
@@ -44,15 +90,24 @@ func demoCommand(args []string) error {
 	}
 	base, err := filepath.Abs(base)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if base == filepath.VolumeName(base)+string(filepath.Separator) {
-		return fmt.Errorf("refusing to use filesystem root %q as the demo directory", base)
+		return "", fmt.Errorf("refusing to use filesystem root %q as the demo directory", base)
 	}
 	if err := os.MkdirAll(base, 0o700); err != nil {
-		return err
+		return "", err
 	}
+	return base, nil
+}
 
+// setupDemo builds the isolated demo session used by the tour, fallback menu,
+// and the JSONL bridge.
+func setupDemo(base string) (*demoSession, error) {
+	base, err := resolveDemoBase(base)
+	if err != nil {
+		return nil, err
+	}
 	// The demo never reads from or writes to the real user profile. Config,
 	// logs, local manifests, fixtures, and the repository all live under base.
 	stateDir := filepath.Join(base, "state")
@@ -61,14 +116,14 @@ func demoCommand(args []string) error {
 	tempDir := filepath.Join(base, "tmp")
 	for _, dir := range []string{stateDir, home, repoPath, tempDir} {
 		if err := os.MkdirAll(dir, 0o700); err != nil {
-			return err
+			return nil, err
 		}
 	}
 	if err := os.Setenv("DITCH_WINDOWS_HOME", stateDir); err != nil {
-		return err
+		return nil, err
 	}
 	if err := demo.SeedHome(home); err != nil {
-		return fmt.Errorf("seed demo home: %w", err)
+		return nil, fmt.Errorf("seed demo home: %w", err)
 	}
 
 	cfg := core.DefaultConfig()
@@ -83,19 +138,18 @@ func demoCommand(args []string) error {
 	if password == "" {
 		password = "ditch-demo-only"
 		if err := os.Setenv("RESTIC_PASSWORD", password); err != nil {
-			return err
+			return nil, err
 		}
 	}
 	binary, err := restic.FindBinary(cfg.ResticPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	repo := restic.New(repoPath, password, binary)
 	logger, err := core.NewDailyFileLogger(core.LogsDir())
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer logger.Close()
 	params := &core.Params{
 		Exec:        core.NewDefaultExec(),
 		Repo:        repo,
@@ -110,7 +164,11 @@ func demoCommand(args []string) error {
 		Logger:      logger,
 	}
 	runner := core.NewRunner(demo.Modules(), params)
-	runner.SetEventHandler(func(e core.Event) {
+	return &demoSession{base: base, home: home, cfg: cfg, params: params, runner: runner, logger: logger, profile: profile}, nil
+}
+
+func (s *demoSession) runTour(apply bool) error {
+	s.runner.SetEventHandler(func(e core.Event) {
 		switch e.Type {
 		case core.EventMessage:
 			if e.Module != "" && e.Message != "" {
@@ -122,29 +180,6 @@ func demoCommand(args []string) error {
 			}
 		}
 	})
-	s := &demoSession{base: base, home: home, cfg: cfg, params: params, runner: runner, logger: logger, profile: profile}
-
-	// The TUI owns the terminal and shows the safety model on its dashboard, so
-	// do not print the plain-text banner before entering the alternate screen.
-	if *interactive && term.IsTerminal(os.Stdin.Fd()) && term.IsTerminal(os.Stdout.Fd()) {
-		return s.runTUI()
-	}
-
-	fmt.Println("ditch-windows — isolated Docker demo")
-	fmt.Printf("  demo root:     %s\n", base)
-	fmt.Printf("  synthetic home: %s\n", home)
-	fmt.Printf("  restic repo:   %s\n", repoPath)
-	fmt.Println("  demo passphrase: ditch-demo-only (published; synthetic data only)")
-	fmt.Println("  Your real files are not mounted or read. Everything above is disposable.")
-	fmt.Println()
-
-	if *interactive {
-		return s.runMenu()
-	}
-	return s.runTour(*apply)
-}
-
-func (s *demoSession) runTour(apply bool) error {
 	if err := s.backup(); err != nil {
 		return err
 	}
@@ -170,7 +205,7 @@ func (s *demoSession) runTour(apply bool) error {
 		return err
 	}
 	fmt.Println("\nDemo complete. This container can be removed with no effect on your machine.")
-	fmt.Println("Interactive menu: ditch-windows demo --interactive")
+	fmt.Println("Interactive demo: ditch-windows demo --interactive")
 	return nil
 }
 

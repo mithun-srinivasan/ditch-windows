@@ -26,9 +26,9 @@ inventory APIs.
 [![MIT](https://img.shields.io/badge/license-MIT-22c55e)](LICENSE)
 
 > **Status: v0.1 development.** The CLI, backup/restore engine, modules, and isolated
-> Docker demo are functional. The Docker demo has a full-screen terminal UI; the Windows
-> screens are still being moved to the same interface. Test restores on a non-critical
-> machine before relying on them.
+> Docker demo are functional. The full-screen terminal UI is built with OpenTUI
+> (TypeScript) as a sidecar that talks to the Go engine over JSONL stdin/stdout;
+> the numbered menu remains as a non-TTY fallback.
 >
 > **Safety:** restores are previews unless you pass `--apply`. Existing files are kept as
 > `.bak` copies by default. The restic passphrase is never written to config.
@@ -157,6 +157,7 @@ the Docker map, read [docs/STORAGE.md](docs/STORAGE.md).
 
 - For S3 or rclone, configure credentials/remotes using restic's standard mechanisms.
 - Docker Desktop only if you want the isolated demo.
+- Node 26+ (or Bun) if you want to build the UI from source (`ui/`).
 
 ## Install
 
@@ -241,7 +242,8 @@ Back up to a different repository for one run with `--repo`, for example
 
 The demo runs in a disposable Linux container. It does **not** mount your home directory
 or read any real files. It uses a synthetic home, real restic encryption, the real files
-module, and clearly labelled fixtures for the Windows-only modules.
+module, and clearly labelled fixtures for the Windows-only modules. The container now
+bundles the OpenTUI frontend and serves it from the same Go binary.
 
 ```bash
 docker build -t ditch-windows-demo .
@@ -261,8 +263,8 @@ docker run --rm ditch-windows-demo demo --apply
 ```
 
 Inside the TUI, use `j`/`k` or the arrow keys to move and `enter` to select. Shortcuts:
-`b` backup, `p` preview restore, `a` apply restore, `v` verify, `l` backups,
-`f` demo files, `q` quit. Applying asks for confirmation.
+`b` backup, `r` restore, `l` backups, `v` verify, `s` settings, `?` help, `q` quit.
+Applying asks for confirmation. On non-TTY shells the numbered menu runs instead.
 
 All demo application data lives under `/demo` inside the container. Restic also keeps a
 cache in the disposable container home (`/home/demo/.cache/restic`). `--rm` throws both
@@ -277,7 +279,9 @@ Windows 11 machine.
 ## Commands
 
 ```text
-ditch-windows                         Open the interactive menu
+ditch-windows                         Open the interactive TUI (falls back to the numbered menu without a TTY)
+ditch-windows tui                     Open the full-screen TUI explicitly
+ditch-windows bridge                  Run the JSONL bridge engine (for the OpenTUI frontend)
 ditch-windows backup                  Back up the default profile
 ditch-windows backup --profile full   Back up the full profile
 ditch-windows backup --headless       Run without the interactive menu
@@ -355,14 +359,13 @@ ask it to copy.
 
 | Document | What it covers |
 | --- | --- |
-| [docs/DOCKER.md](docs/DOCKER.md) | Isolated demo safety model, TUI keys, container layout, troubleshooting |
-| [docs/STORAGE.md](docs/STORAGE.md) | Every path, repository layout, backup/restore lifecycle, deletion, Docker map |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Components, module contract, flows, integrity model, extension guide |
-| [assets/ascii-logo.txt](assets/ascii-logo.txt) | The wordmark used in this README and the demo TUI |
+- [docs/DOCKER.md](docs/DOCKER.md) | Isolated demo safety model, TUI keys, container layout, troubleshooting
+- [docs/STORAGE.md](docs/STORAGE.md) | Every path, repository layout, backup/restore lifecycle, deletion, Docker map
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Components, module contract, flows, integrity model, extension guide
+- [assets/ascii-logo.txt](assets/ascii-logo.txt) | The wordmark used in this README and the demo TUI
 
 ## Roadmap
 
-- Move the Windows screens to the full-screen bubbletea TUI (the Docker demo TUI is done).
 - Setup wizard, module picker, and richer restore preview.
 - Curated application configs (VS Code, Git, Windows Terminal).
 - Curated registry key backup.
@@ -384,6 +387,26 @@ Tests use an injected `Exec` interface and an in-memory repository, so no real `
 `netsh`, `dism`, or restic calls are required. Contributions are welcome under the MIT
 license.
 
+### UI (OpenTUI sidecar)
+
+The full-screen TUI is a TypeScript/OpenTUI frontend in `ui/` that talks to the Go
+engine over JSONL stdin/stdout.
+
+```powershell
+cd ui
+npm install        # or bun install
+npm run typecheck  # tsc --noEmit
+npm run build      # esbuild bundle to ui/dist/index.js
+npm run build:exe  # bun build --compile standalone ditch-windows-tui.exe
+npm run dev        # run via tsx with --experimental-ffi
+```
+
+The launcher resolves the frontend in this order: `DITCH_TUI_BIN`, a sibling
+`ditch-windows-tui(.exe)`, `ui/dist/index.js` via `node --experimental-ffi`, or
+`ui/src/index.tsx` via `bun`. Set `DITCH_UI_DIR` to point at a custom UI root.
+
+The Docker build (`docker build`) compiles the UI bundle and ships it in the image.
+
 The Docker build and smoke test also run in CI. To test the demo locally:
 
 ```bash
@@ -394,17 +417,17 @@ docker run --rm ditch-windows-demo
 ## Project layout
 
 ```text
-cmd/ditch-windows/  CLI entry point, demo session, TUI adapter
+cmd/ditch-windows/  CLI entry point, demo session, bridge + launch engine
 internal/core/      runner, config, manifest, conflicts, hashing, elevation, paths
 internal/module/    winget, default-apps, wifi, fonts, theme, files
 internal/platform/  Windows registry, fonts, theme providers
 internal/restic/    restic subprocess wrapper and JSON parsing
 internal/storage/   repository URL parsing (local/USB/S3/rclone)
-internal/tui/       bubbletea/lipgloss full-screen demo interface
 internal/demo/      synthetic fixtures and modules for the Docker demo
+ui/                 OpenTUI TypeScript frontend (bridge client + screens)
 assets/             ASCII wordmark
 docs/               Docker, storage, and architecture documentation
-Dockerfile          safe Linux demo image (restic + synthetic fixtures)
+Dockerfile          safe Linux demo image (restic + synthetic fixtures + UI bundle)
 ```
 
 ## License

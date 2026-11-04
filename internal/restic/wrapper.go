@@ -276,7 +276,35 @@ func (w *Wrapper) Restore(ctx context.Context, snapshotID, target string, opts c
 		args = append(args, "--overwrite", opts.Overwrite)
 	}
 	_, err := w.run(ctx, args...)
+	if err != nil && opts.IgnoreTimestampErrors && onlyTimestampRestoreErrors(err) {
+		return nil
+	}
 	return err
+}
+
+// onlyTimestampRestoreErrors reports whether restic failed solely because it
+// could not restore directory timestamps (common for Windows metadata staging).
+func onlyTimestampRestoreErrors(err error) bool {
+	msg := err.Error()
+	if !strings.Contains(msg, "failed to restore timestamp") {
+		return false
+	}
+	for _, raw := range strings.Split(msg, "\n") {
+		line := strings.TrimSpace(raw)
+		switch {
+		case strings.HasPrefix(line, "ignoring error for"):
+			if !strings.Contains(line, "failed to restore timestamp") {
+				return false
+			}
+		case strings.HasPrefix(line, "Fatal:"):
+			if !strings.HasPrefix(line, "Fatal: There were") {
+				return false
+			}
+		case strings.HasPrefix(line, "error:"), strings.HasPrefix(line, "unable to"):
+			return false
+		}
+	}
+	return true
 }
 
 // List returns snapshots matching all given tags, newest first.

@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/x/term"
+	"golang.org/x/term"
+
 	"github.com/mithun-srinivasan/ditch-windows/internal/core"
 	"github.com/mithun-srinivasan/ditch-windows/internal/module"
-	"github.com/mithun-srinivasan/ditch-windows/internal/restic"
 	"github.com/mithun-srinivasan/ditch-windows/internal/storage"
 )
 
@@ -31,9 +31,11 @@ func main() {
 
 func execute(args []string) error {
 	if len(args) == 0 || args[0] == "tui" {
-		return menu()
+		return cmdTUI()
 	}
 	switch args[0] {
+	case "bridge":
+		return bridgeCommand(args[1:])
 	case "help", "-h", "--help":
 		usage()
 		return nil
@@ -70,6 +72,7 @@ Usage:
   ditch-windows restore [backup-id] [--dry-run|--apply] [--repo <url>]
   ditch-windows verify [backup-id] [--read-data] [--repo <url>]
   ditch-windows demo [--interactive] [--apply]
+  ditch-windows bridge --demo|--base <dir>   (JSONL engine for the TUI)
   ditch-windows version
 
 The demo command is an isolated, synthetic sandbox intended for Docker. It
@@ -318,51 +321,20 @@ func verifyCommand(args []string) error {
 }
 
 func runtimeFor(override string) (*core.Config, *core.Runner, core.Logger, error) {
-	cfg, err := core.LoadConfig()
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	repoSpec := cfg.RepoURL
-	if override != "" {
-		repoSpec = override
-	}
-	if repoSpec == "" {
-		return nil, nil, nil, fmt.Errorf("repository is not configured; run config init --repo <path>")
-	}
-	_, repoURL, err := storage.BackendFor(repoSpec)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	binary, err := restic.FindBinary(cfg.ResticPath)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	password, err := getPassphrase()
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	repo := restic.New(repoURL, password, binary)
-	if os.Getenv("RESTIC_PASSWORD") == "" {
-		exists, existsErr := repo.Exists(context.Background())
-		if existsErr != nil {
-			return nil, nil, nil, existsErr
+	cfg, _, runner, logger, err := runtimeForMode(override, true)
+	return cfg, runner, logger, err
+}
+
+func cmdTUI() error {
+	if err := runTUI("local", []string{"bridge"}, true); err != nil {
+		if errors.Is(err, errNoTUI) {
+			fmt.Fprintln(os.Stderr, "No OpenTUI frontend found; using the plain menu.")
+			fmt.Fprintln(os.Stderr, "Install it with: cd ui && npm install && npm run build")
+			return menu()
 		}
-		if !exists {
-			confirmPassword, readErr := readSecret("Confirm new repository passphrase: ")
-			if readErr != nil {
-				return nil, nil, nil, readErr
-			}
-			if confirmPassword != password {
-				return nil, nil, nil, errors.New("passphrases do not match")
-			}
-		}
+		return err
 	}
-	logger, err := core.NewDailyFileLogger(core.LogsDir())
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	params := &core.Params{Repo: repo, RepoInfo: storage.SanitizeRepoURL(repoURL), Config: cfg, Exec: core.NewDefaultExec(), Logger: logger, ToolVersion: version, Commit: commit}
-	return cfg, core.NewRunner(module.All(), params), logger, nil
+	return nil
 }
 
 func printPreview(p *core.RestorePreview) {
@@ -403,8 +375,8 @@ func getPassphrase() (string, error) {
 
 func readSecret(prompt string) (string, error) {
 	fmt.Print(prompt)
-	if term.IsTerminal(os.Stdin.Fd()) {
-		secret, err := term.ReadPassword(os.Stdin.Fd())
+	if term.IsTerminal(int(os.Stdin.Fd())) {
+		secret, err := term.ReadPassword(int(os.Stdin.Fd()))
 		fmt.Println()
 		return string(secret), err
 	}

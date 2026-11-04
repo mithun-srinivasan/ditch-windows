@@ -1,0 +1,25 @@
+{
+  "name": "ditch-windows-ui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "OpenTUI frontend for ditch-windows",
+  "scripts": {
+    "build": "esbuild src/index.tsx --bundle --format=esm --platform=node --target=node22 --packages=external --outfile=dist/index.js",
+    "build:exe": "bun build --compile --minify src/index.tsx --outfile dist/ditch-windows-tui.exe",
+    "typecheck": "tsc --noEmit",
+    "dev": "node --experimental-ffi --import tsx src/index.tsx"
+  },
+  "dependencies": {
+    "@opentui/core": "^0.8.2",
+    "@opentui/react": "^0.8.2",
+    "react": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.2.0",
+    "esbuild": "^0.25.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}

@@ -159,6 +159,10 @@ type BackupOptions struct {
 // RestoreOptions configures snapshot extraction.
 type RestoreOptions struct {
 	Overwrite string
+	// IgnoreTimestampErrors tolerates restic's Windows failure to restore
+	// directory timestamps. Metadata staging only needs file contents, so the
+	// timestamp warning is not fatal there.
+	IgnoreTimestampErrors bool
 }
 
 // Snapshot is a repository snapshot.

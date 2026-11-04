@@ -200,7 +200,6 @@ func (r *Runner) Backup(ctx context.Context, enabled []string) (*Manifest, error
 			manifest.Modules[m.Name()] = status
 			log.Warnf("skipping %s: %s", m.Name(), status.Error)
 			r.emit(Event{Type: EventModuleDone, Module: m.Name(), Status: &status, Err: ErrElevationNeeded})
-			failed++
 			continue
 		}
 
@@ -258,7 +257,7 @@ func (r *Runner) Backup(ctx context.Context, enabled []string) (*Manifest, error
 
 	manifest.CompletedUTC = time.Now().UTC()
 	manifest.DurationMS = manifest.CompletedUTC.Sub(manifest.StartedUTC).Milliseconds()
-	manifest.Partial = failed > 0
+	manifest.Partial = failed > 0 || anyModuleSkipped(manifest)
 
 	// Persist the manifest locally for inspection and inside the encrypted
 	// metadata snapshot.
@@ -318,6 +317,15 @@ func (r *Runner) selectedModules(names []string) ([]Module, error) {
 // PartialBackupError indicates that one or more modules failed, but the
 // metadata snapshot was still stored.
 type PartialBackupError struct{ Manifest *Manifest }
+
+func anyModuleSkipped(manifest *Manifest) bool {
+	for _, status := range manifest.Modules {
+		if status.Skipped {
+			return true
+		}
+	}
+	return false
+}
 
 func (e *PartialBackupError) Error() string {
 	failed := 0
@@ -432,7 +440,7 @@ func (r *Runner) Restore(ctx context.Context, backupID string, opts RestoreOpts)
 
 	started := time.Now().UTC()
 	r.emit(Event{Type: EventRestoreStart, Message: backupID})
-	if err := r.params.Repo.Restore(ctx, meta.ID, stage, RestoreOptions{}); err != nil {
+	if err := r.params.Repo.Restore(ctx, meta.ID, stage, RestoreOptions{IgnoreTimestampErrors: true}); err != nil {
 		return nil, fmt.Errorf("restore metadata: %w", err)
 	}
 	manifestPath, manifest, err := FindManifest(stage)
@@ -472,7 +480,7 @@ func (r *Runner) Restore(ctx context.Context, backupID string, opts RestoreOpts)
 			failed++
 			continue
 		}
-		if !status.Success && !status.Skipped {
+		if !status.Success || status.Skipped {
 			report.Modules = append(report.Modules, RestoreModuleResult{Name: status.Name, Skipped: true, Error: "backup did not capture this module"})
 			continue
 		}
@@ -544,6 +552,14 @@ func (r *Runner) buildPreview(ctx context.Context, manifestPath string, manifest
 			Elevated:   IsElevated(),
 			ItemCount:  status.ItemCount,
 			Details:    status.Details,
+		}
+		if !status.Success || status.Skipped {
+			mp.Error = status.Error
+			if mp.Error == "" {
+				mp.Error = "not captured in this backup"
+			}
+			p.Modules = append(p.Modules, mp)
+			continue
 		}
 		m, ok := r.module(status.Name)
 		if !ok {
@@ -618,7 +634,7 @@ func (r *Runner) Verify(ctx context.Context, backupID string) (*VerifyReport, er
 		return report, err
 	}
 	defer removeStage(stage)
-	if err := r.params.Repo.Restore(ctx, meta.ID, stage, RestoreOptions{}); err != nil {
+	if err := r.params.Repo.Restore(ctx, meta.ID, stage, RestoreOptions{IgnoreTimestampErrors: true}); err != nil {
 		return report, fmt.Errorf("restore metadata for verification: %w", err)
 	}
 	manifestPath, manifest, err := FindManifest(stage)

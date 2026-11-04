@@ -131,7 +131,7 @@ func (w *DemoWifi) Restore(ctx context.Context, dir string, opts core.RestoreOpt
 		return err
 	}
 	defer func() { _ = module.SecureWipeDir(stage) }()
-	if err := p.Repo.Restore(ctx, snapshot, stage, core.RestoreOptions{}); err != nil {
+	if err := p.Repo.Restore(ctx, snapshot, stage, core.RestoreOptions{IgnoreTimestampErrors: true}); err != nil {
 		return err
 	}
 	xmls, err := filesWithSuffix(stage, ".xml")

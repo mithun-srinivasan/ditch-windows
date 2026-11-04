@@ -171,7 +171,7 @@ func (f *Files) Restore(ctx context.Context, dir string, opts core.RestoreOpts) 
 	}
 	defer func() { _ = os.RemoveAll(stage) }()
 	p.Reportf("restoring files snapshot (this may take a while)")
-	if err := p.Repo.Restore(ctx, snapshotID, stage, core.RestoreOptions{}); err != nil {
+	if err := p.Repo.Restore(ctx, snapshotID, stage, core.RestoreOptions{IgnoreTimestampErrors: true}); err != nil {
 		return fmt.Errorf("restore files snapshot: %w", err)
 	}
 	var failures []error

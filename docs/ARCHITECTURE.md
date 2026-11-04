@@ -28,8 +28,8 @@ deduplication, encryption, or Windows inventory APIs itself.
              +-----------------------+-----------------------+
              |                                               |
    +---------v----------+                          +---------v---------+
-   |    internal/tui    |                          | internal/storage  |
-   |  Docker demo TUI   |                          | repo URL parsing  |
+   |    ui/                   |                          | internal/storage  |
+   |  OpenTUI frontend        |                          | repo URL parsing  |
    +---------+----------+                          +---------+---------+
              |                                               |
              +-----------------------+-----------------------+
@@ -59,10 +59,11 @@ deduplication, encryption, or Windows inventory APIs itself.
 
 ### `cmd/ditch-windows`
 
-Parses commands (`backup`, `list`, `restore`, `verify`, `config`, `demo`, `version`),
+Parses commands (`backup`, `list`, `restore`, `verify`, `config`, `demo`, `tui`, `bridge`, `version`),
 loads config, resolves the repository, opens the logger, and constructs the runner. The
-interactive menu is currently plain text; the full-screen bubbletea TUI is implemented
-for the isolated Docker demo and is being extended to the Windows flow.
+full-screen UI is an OpenTUI TypeScript sidecar (`ui/`) that talks to the Go engine over
+JSONL stdin/stdout via the `bridge` command; the plain numbered menu remains as a
+non-TTY fallback.
 
 ### `internal/core`
 
@@ -121,11 +122,13 @@ Windows-specific providers for the registry, fonts, and theme. Registry access i
 allowlisted to the values needed for wallpaper, theme, accent, dark mode, and font
 registration. Whole hives are never exported or restored.
 
-### `internal/tui`
+### `ui/`
 
-The bubbletea/lipgloss full-screen demo UI. It talks to the demo through a small action
-interface in `internal/tui/demo.go`; the adapter in `cmd/ditch-windows/demo_tui.go` maps
-those actions to the real runner. The same visual language can host the Windows screens.
+The full-screen terminal UI built with OpenTUI (TypeScript/React). It runs as a
+sidecar process launched by `ditch-windows tui` / `bridge`, speaking JSONL over
+stdin/stdout. Screens: dashboard, backup, restore, backups, verify, settings,
+onboarding, help. Navigation is keyboard-first (`j`/`k`/arrows/tab/enter,
+shortcuts `b`/`r`/`l`/`v`/`s`/`?`/`q`).
 
 ### `internal/demo`
 
@@ -174,7 +177,8 @@ successful modules have been stored.
 ```
 
 The GUI/TUI path uses the same runner and the same preview-then-apply rule. The Docker
-TUI additionally refuses to apply unless a preview for the current backup exists.
+TUI runs inside the container and refuses to apply unless a preview for the current
+backup exists.
 
 ## Data and integrity model
 
