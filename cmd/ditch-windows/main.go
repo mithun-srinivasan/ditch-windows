@@ -44,6 +44,8 @@ func execute(args []string) error {
 		return nil
 	case "config":
 		return configCommand(args[1:])
+	case "setup":
+		return setupCommand(args[1:])
 	case "backup":
 		return backupCommand(args[1:])
 	case "restore":
@@ -65,6 +67,7 @@ func usage() {
 
 Usage:
   ditch-windows [tui]
+  ditch-windows setup [--repo <path-or-restic-url>]
   ditch-windows config init --repo <path-or-restic-url>
   ditch-windows config show
   ditch-windows backup [--profile daily] [--repo <url>]
@@ -75,8 +78,11 @@ Usage:
   ditch-windows bridge --demo|--base <dir>   (JSONL engine for the TUI)
   ditch-windows version
 
-The demo command is an isolated, synthetic sandbox intended for Docker. It
-never reads the real user profile; see README.md for the container workflow.
+The demo command is an isolated, synthetic sandbox. It never reads the real
+user profile, so it is safe to run on any machine. See README.md for details.
+
+ditch-windows setup downloads restic when it is missing, writes a default
+config, and builds the terminal UI when its sources are present.
 
 Set DITCH_RESTIC_BINARY to select a restic executable and RESTIC_PASSWORD to
 supply the repository password non-interactively.`)
@@ -328,6 +334,19 @@ func runtimeFor(override string) (*core.Config, *core.Runner, core.Logger, error
 func cmdTUI() error {
 	if err := runTUI("local", []string{"bridge"}, true); err != nil {
 		if errors.Is(err, errNoTUI) {
+			// A fresh clone has no built frontend and no repository. Get the
+			// user to a working state instead of dropping them in a menu that
+			// cannot back anything up yet.
+			cfg, loadErr := core.LoadConfig()
+			if loadErr == nil && cfg.RepoURL == "" && isInteractiveTerminal() {
+				if setupErr := firstRunSetup(); setupErr != nil {
+					fmt.Fprintln(os.Stderr, "Setup failed:", setupErr)
+				} else if retryErr := runTUI("local", []string{"bridge"}, true); retryErr == nil {
+					return nil
+				} else if !errors.Is(retryErr, errNoTUI) {
+					return retryErr
+				}
+			}
 			fmt.Fprintln(os.Stderr, "No OpenTUI frontend found; using the plain menu.")
 			fmt.Fprintln(os.Stderr, "Install it with: cd ui && npm install && npm run build")
 			return menu()
@@ -397,7 +416,7 @@ func menu() error {
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		fmt.Println("\nditch-windows")
-		fmt.Println("1) Back up  2) List backups  3) Preview restore  4) Verify repository  5) Show config  6) Quit")
+		fmt.Println("1) Back up  2) List backups  3) Preview restore  4) Verify repository  5) Show config  6) Setup  7) Quit")
 		fmt.Print("Choose: ")
 		line, err := reader.ReadString('\n')
 		if err != nil && len(line) == 0 {
@@ -415,10 +434,12 @@ func menu() error {
 			cmd = []string{"verify"}
 		case "5":
 			cmd = []string{"config", "show"}
-		case "6", "q", "quit":
+		case "6":
+			cmd = []string{"setup"}
+		case "7", "q", "quit":
 			return nil
 		default:
-			fmt.Println("Choose a number from 1 to 6.")
+			fmt.Println("Choose a number from 1 to 7.")
 			continue
 		}
 		if err := execute(cmd); err != nil {

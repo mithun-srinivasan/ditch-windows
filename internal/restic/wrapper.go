@@ -26,7 +26,7 @@ var ErrWrongPassword = errors.New("restic: wrong password or no key found")
 var ErrRepoNotFound = errors.New("restic: repository does not exist")
 
 // InstallHint is shown when restic cannot be found.
-const InstallHint = "install restic (winget install restic.restic) or set restic_path in config"
+const InstallHint = "run `ditch-windows setup` to download it, or install it with `winget install restic.restic`"
 
 // Wrapper drives a restic binary through its subprocess interface.
 type Wrapper struct {
@@ -62,6 +62,11 @@ func FindBinary(explicit string) (string, error) {
 		if info, err := os.Stat(c); err == nil && !info.IsDir() {
 			return c, nil
 		}
+	}
+	// A restic copy downloaded by `ditch-windows setup` wins over PATH so the
+	// version we verified is the version we run.
+	if info, err := os.Stat(ManagedBinary()); err == nil && !info.IsDir() {
+		return ManagedBinary(), nil
 	}
 	if p, err := exec.LookPath("restic"); err == nil {
 		return p, nil

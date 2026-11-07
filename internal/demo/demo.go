@@ -1,4 +1,4 @@
-// Package demo provides safe, synthetic modules used by the Docker demo.
+// Package demo provides safe, synthetic modules used by the local and Docker demo.
 //
 // The demo deliberately exercises the real restic repository implementation and
 // the real files module, but replaces Windows-only integrations (winget, netsh,
@@ -25,12 +25,21 @@ func Modules() []core.Module {
 	return []core.Module{
 		NewApps(),
 		NewWifi(),
-		module.NewFiles(),
+		NewFiles(),
 		NewTheme(),
 	}
 }
 
-// DemoProfile is the profile used by the container demo.
+// NewFiles returns the production files module with the admin requirement
+// removed. The demo home is synthetic and needs no VSS snapshot, so the real
+// restic backup/restore path stays exercised on every platform.
+func NewFiles() core.Module { return demoFiles{Files: module.NewFiles()} }
+
+type demoFiles struct{ *module.Files }
+
+func (demoFiles) NeedsAdmin() bool { return false }
+
+// DemoProfile is the profile used by the synthetic demo.
 func DemoProfile() core.Profile {
 	return core.Profile{
 		EnabledModules: []string{"apps", "wifi", "files", "theme"},

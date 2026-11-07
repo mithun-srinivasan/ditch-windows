@@ -30,7 +30,7 @@ func demoCommand(args []string) error {
 	fs := flag.NewFlagSet("demo", flag.ContinueOnError)
 	baseFlag := fs.String("base", "", "demo directory (default $DITCH_DEMO_DIR or a temp folder)")
 	interactive := fs.Bool("interactive", false, "show the interactive demo")
-	apply := fs.Bool("apply", false, "perform a demo restore inside the container-only demo home")
+	apply := fs.Bool("apply", false, "perform a demo restore inside the sandbox demo home")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -60,7 +60,7 @@ func demoCommand(args []string) error {
 	// The TUI owns the terminal and shows the safety model on its dashboard, so
 	// do not print the plain-text banner before entering the alternate screen.
 	if *interactive {
-		fmt.Println("ditch-windows — isolated Docker demo")
+		fmt.Println("ditch-windows — isolated synthetic demo")
 		fmt.Printf("  demo root:      %s\n", base)
 		fmt.Printf("  synthetic home: %s\n", s.home)
 		fmt.Printf("  restic repo:    %s\n", filepath.Join(base, "repo"))
@@ -70,7 +70,7 @@ func demoCommand(args []string) error {
 		return s.runMenu()
 	}
 
-	fmt.Println("ditch-windows — isolated Docker demo")
+	fmt.Println("ditch-windows — isolated synthetic demo")
 	fmt.Printf("  demo root:      %s\n", base)
 	fmt.Printf("  synthetic home: %s\n", s.home)
 	fmt.Printf("  restic repo:    %s\n", filepath.Join(base, "repo"))
@@ -141,7 +141,10 @@ func setupDemo(base string) (*demoSession, error) {
 			return nil, err
 		}
 	}
-	binary, err := restic.FindBinary(cfg.ResticPath)
+	binary, err := restic.EnsureBinary(context.Background(), cfg.ResticPath, restic.EnsureOptions{
+		AllowDownload: true,
+		Status:        func(line string) { fmt.Println("  " + line) },
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +207,7 @@ func (s *demoSession) runTour(apply bool) error {
 	if err := s.verify(); err != nil {
 		return err
 	}
-	fmt.Println("\nDemo complete. This container can be removed with no effect on your machine.")
+	fmt.Println("\nDemo complete. The demo directory is disposable and can be deleted at any time.")
 	fmt.Println("Interactive demo: ditch-windows demo --interactive")
 	return nil
 }
@@ -212,7 +215,7 @@ func (s *demoSession) runTour(apply bool) error {
 func (s *demoSession) runMenu() error {
 	reader := bufio.NewReader(os.Stdin)
 	for {
-		fmt.Println("\nDocker demo menu")
+		fmt.Println("\nDemo menu")
 		fmt.Println("1) Back up synthetic home   2) List backups   3) Preview restore")
 		fmt.Println("4) Apply restore (demo only) 5) Verify          6) Show demo files   7) Quit")
 		fmt.Print("Choose: ")

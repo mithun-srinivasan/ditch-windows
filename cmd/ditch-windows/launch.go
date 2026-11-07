@@ -92,17 +92,24 @@ func resolveTUICommand() (tuiCommand, error) {
 			return tuiCommand{path: exe, source: "ui/dist standalone"}, nil
 		}
 		dist := filepath.Join(root, "dist", "index.js")
-		if info, err := os.Stat(dist); err == nil && !info.IsDir() {
+		if info, err := os.Stat(dist); err == nil && !info.IsDir() && uiDepsInstalled(root) {
 			return tuiCommand{path: "node", args: []string{"--experimental-ffi", dist}, source: "ui/dist"}, nil
 		}
 		src := filepath.Join(root, "src", "index.tsx")
-		if _, err := os.Stat(src); err == nil {
+		if _, err := os.Stat(src); err == nil && uiDepsInstalled(root) {
 			if bun, lookErr := exec.LookPath("bun"); lookErr == nil {
 				return tuiCommand{path: bun, args: []string{src}, source: "ui/src (bun)"}, nil
 			}
 		}
 	}
 	return tuiCommand{}, errNoTUI
+}
+
+// uiDepsInstalled reports whether the frontend's node_modules exists. The
+// bundle is built with external packages, so it cannot run without them.
+func uiDepsInstalled(root string) bool {
+	info, err := os.Stat(filepath.Join(root, "node_modules"))
+	return err == nil && info.IsDir()
 }
 
 func isInteractiveTerminal() bool {

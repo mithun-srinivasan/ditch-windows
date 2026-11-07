@@ -7,6 +7,7 @@
   "scripts": {
     "build": "esbuild src/index.tsx --bundle --format=esm --platform=node --target=node22 --packages=external --outfile=dist/index.js",
     "build:exe": "bun build --compile --minify src/index.tsx --outfile dist/ditch-windows-tui.exe",
+    "build:exe:x64": "bun build --compile --minify --target=bun-windows-x64 src/index.tsx --outfile dist/ditch-windows-tui.exe",
     "typecheck": "tsc --noEmit",
     "dev": "node --experimental-ffi --import tsx src/index.tsx"
   },
