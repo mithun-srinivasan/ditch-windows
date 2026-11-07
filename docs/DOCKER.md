@@ -4,6 +4,10 @@ The Docker image is a **safe, disposable demonstration** of ditch-windows. It ex
 you can try the backup and restore workflow without installing anything on your Windows
 machine and without giving the app access to your real profile.
 
+The same demo also runs directly on Windows, Linux, and macOS. For the full
+walkthrough — including a presenter script, expected output, and troubleshooting — see
+[DEMO.md](DEMO.md).
+
 For the Windows application's paths and the repository lifecycle, see
 [STORAGE.md](STORAGE.md). For the component boundaries, see
 [ARCHITECTURE.md](ARCHITECTURE.md).
@@ -36,7 +40,7 @@ docker run --rm -v ditch-demo-data:/demo ditch-windows-demo
 
 | Part | In the container |
 | --- | --- |
-| restic repository, encryption, snapshots, checks | Real restic 0.14 |
+| restic repository, encryption, snapshots, checks | Real restic (bundled in the image) |
 | files module: scan, restic backup, preview, staged restore, conflicts | Real production module |
 | metadata manifest, SHA-256 hashes, verification | Real production runner |
 | `apps` module | Synthetic fixture standing in for winget export/import |

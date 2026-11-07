@@ -35,6 +35,7 @@ inventory APIs.
 
 ## Contents
 
+- [Try it now](#try-it-now)
 - [Why ditch-windows?](#why-ditch-windows)
 - [What it captures](#what-it-captures)
 - [How it works](#how-it-works)
@@ -53,6 +54,34 @@ inventory APIs.
 - [Development](#development)
 - [Project layout](#project-layout)
 - [License](#license)
+
+## Try it now
+
+The demo is a self-contained, synthetic sandbox. It never reads your real
+profile, and it works on Windows, Linux, and macOS:
+
+```powershell
+go run ./cmd/ditch-windows demo
+```
+
+On first use it downloads a checksum-verified restic into
+`%APPDATA%\ditch-windows\bin`, seeds a fake home directory, backs it up, previews
+a restore, applies `.bak` conflict handling, and verifies the repository.
+
+To make ditch-windows usable for your own machine, run setup once:
+
+```powershell
+.\ditch-windows.exe setup    # restic + config + terminal UI
+.\ditch-windows.exe          # full-screen UI (numbered menu without it)
+```
+
+`setup` is safe to re-run. It only downloads restic when it is missing, only
+writes a config when one does not exist, and only builds the UI when it is not
+built yet. Pass `--repo <path-or-url>` to choose the repository, `--no-download`
+to skip the restic download, or `--skip-ui` to skip the frontend build.
+
+For a presenter's walkthrough, expected output, and troubleshooting, see the
+[demo guide](docs/DEMO.md).
 
 ## Why ditch-windows?
 
@@ -148,15 +177,17 @@ the Docker map, read [docs/STORAGE.md](docs/STORAGE.md).
 - Windows 10/11 for capture and restore modules. The orchestration layer cross-compiles
   and unit tests run on Linux.
 - Go 1.22+ to build from source.
-- [restic](https://restic.net/) on `PATH`, or set `restic_path` in config or
-  `DITCH_RESTIC_BINARY`:
+- [restic](https://restic.net/) is required at runtime. `ditch-windows setup` and
+  `ditch-windows demo` download a checksum-verified copy into
+  `%APPDATA%\ditch-windows\bin` when it is missing. To manage it yourself instead:
 
   ```powershell
   winget install restic.restic
   ```
 
+  You can also set `restic_path` in config or `DITCH_RESTIC_BINARY`.
 - For S3 or rclone, configure credentials/remotes using restic's standard mechanisms.
-- Docker Desktop only if you want the isolated demo.
+- Docker Desktop only if you want the container demo.
 - Node 26+ (or Bun) if you want to build the UI from source (`ui/`).
 
 ## Install
@@ -170,15 +201,21 @@ cd ditch-windows
 go build -trimpath -o ditch-windows.exe ./cmd/ditch-windows
 ```
 
+Release archives contain `ditch-windows.exe` and a self-contained
+`ditch-windows-tui.exe`, so the full-screen UI runs without Node.js or Bun. On
+Windows 11 on ARM, the x64 TUI runs under the built-in x64 emulation.
+
 ## Quick start
 
-1. Install restic and initialize the config with your repository path:
+1. Run setup once. It downloads restic if needed, writes a config, and builds the
+   terminal UI when its sources are present:
 
    ```powershell
-   winget install restic.restic
-   .\ditch-windows.exe config init --repo "$env:USERPROFILE\ditch-windows-repo"
+   .\ditch-windows.exe setup --repo "$env:USERPROFILE\ditch-windows-repo"
    .\ditch-windows.exe config show
    ```
+
+   Without `--repo`, setup uses `%USERPROFILE%\ditch-windows-repo`.
 
 2. Run the interactive menu, or start with a headless backup:
 
@@ -240,10 +277,12 @@ Back up to a different repository for one run with `--repo`, for example
 
 ## Docker demo (safe, no Windows required)
 
-The demo runs in a disposable Linux container. It does **not** mount your home directory
-or read any real files. It uses a synthetic home, real restic encryption, the real files
-module, and clearly labelled fixtures for the Windows-only modules. The container now
-bundles the OpenTUI frontend and serves it from the same Go binary.
+The same `demo` command runs directly on your machine (see [Try it now](#try-it-now)).
+The Docker image packages it for a disposable Linux container. It does **not** mount
+your home directory or read any real files. It uses a synthetic home, real restic
+encryption, the real files module, and clearly labelled fixtures for the Windows-only
+modules. The container now bundles the OpenTUI frontend and serves it from the same Go
+binary.
 
 ```bash
 docker build -t ditch-windows-demo .
@@ -281,6 +320,8 @@ Windows 11 machine.
 ```text
 ditch-windows                         Open the interactive TUI (falls back to the numbered menu without a TTY)
 ditch-windows tui                     Open the full-screen TUI explicitly
+ditch-windows setup                   Install restic, write a config, build the UI
+ditch-windows setup --repo URL        Same, pointing at a specific repository
 ditch-windows bridge                  Run the JSONL bridge engine (for the OpenTUI frontend)
 ditch-windows backup                  Back up the default profile
 ditch-windows backup --profile full   Back up the full profile
@@ -291,9 +332,9 @@ ditch-windows restore <backup-id>     Preview a selected backup
 ditch-windows restore --apply         Preview, confirm, and apply
 ditch-windows verify                  Check repository and newest backup
 ditch-windows verify --read-data      Also read and verify data blobs
-ditch-windows demo                    Safe automated synthetic Docker demo
+ditch-windows demo                    Safe automated synthetic demo (local or Docker)
 ditch-windows demo --interactive      Full-screen demo TUI (requires a terminal)
-ditch-windows demo --apply            Demo restore + .bak handling in the container
+ditch-windows demo --apply            Demo restore + .bak handling in the sandbox
 ditch-windows config show             Show config, repository, and profiles
 ditch-windows config init --repo URL  Create the initial config
 ditch-windows version                 Print build information
@@ -359,10 +400,11 @@ ask it to copy.
 
 | Document | What it covers |
 | --- | --- |
-- [docs/DOCKER.md](docs/DOCKER.md) | Isolated demo safety model, TUI keys, container layout, troubleshooting
-- [docs/STORAGE.md](docs/STORAGE.md) | Every path, repository layout, backup/restore lifecycle, deletion, Docker map
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Components, module contract, flows, integrity model, extension guide
-- [assets/ascii-logo.txt](assets/ascii-logo.txt) | The wordmark used in this README and the demo TUI
+| [docs/DEMO.md](docs/DEMO.md) | Run a safe demo anywhere: source, release binary, Docker, live TUI script, troubleshooting |
+| [docs/DOCKER.md](docs/DOCKER.md) | Isolated demo safety model, TUI keys, container layout, troubleshooting |
+| [docs/STORAGE.md](docs/STORAGE.md) | Every path, repository layout, backup/restore lifecycle, deletion, Docker map |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Components, module contract, flows, integrity model, extension guide |
+| [assets/ascii-logo.txt](assets/ascii-logo.txt) | The wordmark used in this README and the demo TUI |
 
 ## Roadmap
 
@@ -400,6 +442,10 @@ npm run build      # esbuild bundle to ui/dist/index.js
 npm run build:exe  # bun build --compile standalone ditch-windows-tui.exe
 npm run dev        # run via tsx with --experimental-ffi
 ```
+
+`ditch-windows setup` runs the first two steps for you when `ui/dist` is missing.
+The bundle is built with external packages, so `ui/node_modules` must stay next to
+`ui/dist/index.js`.
 
 The launcher resolves the frontend in this order: `DITCH_TUI_BIN`, a sibling
 `ditch-windows-tui(.exe)`, `ui/dist/index.js` via `node --experimental-ffi`, or
