@@ -72,7 +72,7 @@ func TestInstallDownloadsVerifiesAndUnpacks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Install: %v", err)
 	}
-	if want := filepath.Join(home, "bin", "restic.exe"); path != want {
+	if want := ManagedBinary(); path != want {
 		t.Fatalf("Install path = %q, want %q", path, want)
 	}
 	data, err := os.ReadFile(path)
