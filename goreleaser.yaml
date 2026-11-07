@@ -25,6 +25,10 @@ archives:
     files:
       - README.md
       - LICENSE
+      # Built by the ui-exe CI job. Bundling it means the release runs the
+      # full-screen UI without Node.js or Bun installed.
+      - src: ui/dist/ditch-windows-tui.exe
+        dst: ditch-windows-tui.exe
 
 checksum:
   name_template: checksums.txt
